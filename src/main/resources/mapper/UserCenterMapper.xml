@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allen.testplatform.modules.databuilder.mapper.UserCenterMapper">
+
+    <select id="getSupplierUserInfo" parameterType="string" resultType="hashmap">
+        SELECT
+        u.id AS id,
+        u.`name`,
+        u.username AS `code`,
+        b.company_name AS providerName,
+        b.ming_yuan_id AS providerGuid,
+        s.position_name AS position
+        FROM
+        business_user_supplier s
+        LEFT JOIN upms_user u ON u.id = s.user_id
+        LEFT JOIN business_supplier b ON b.organization_id = s.organization_id
+        LEFT JOIN business_user uu ON uu.user_id = s.user_id
+        WHERE
+        s.organization_id IN ( SELECT organization_id FROM business_supplier WHERE ming_yuan_id =#{providerGuid} );
+    </select>
+
+    <select id="getSupplierUserOld" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        u.id AS userId,
+        u.`name` AS realName,
+        u.username AS userName,
+        u.phone AS userCode,
+        b.company_name AS providerName,
+        b.ming_yuan_id AS providerGuid
+        FROM
+        business_user_supplier s
+        LEFT JOIN upms_user u ON u.id = s.user_id
+        LEFT JOIN business_supplier b ON b.organization_id = s.organization_id
+        LEFT JOIN business_user uu ON uu.user_id = s.user_id
+        WHERE
+        1 = 1
+        AND
+        s.organization_id IN (
+            SELECT organization_id FROM business_supplier WHERE ming_yuan_id = #{providerGuid} );
+    </select>
+
+    <select id="getSupplierListUser" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        u.id AS userId,
+        u.`name` AS realName,
+        u.username AS userName,
+        u.phone AS userCode,
+        b.company_name AS providerName,
+        b.ming_yuan_id AS providerGuid
+        FROM
+        business_user_supplier s
+        LEFT JOIN upms_user u ON u.id = s.user_id
+        LEFT JOIN business_supplier b ON b.organization_id = s.organization_id
+        LEFT JOIN business_user uu ON uu.user_id = s.user_id
+        WHERE
+        1 = 1
+        AND
+        s.organization_id IN ( SELECT organization_id FROM business_supplier WHERE 1 =1 AND ming_yuan_id in
+        <if test="providerGuidList != null and providerGuidList.size() >0">
+            <foreach collection="providerGuidList" open="(" separator="," close=")" item="providerGuid">
+                #{providerGuid}
+            </foreach>
+        </if>
+             )
+    </select>
+
+    <select id="getUserIdByUserName" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+            id AS userId,
+            `name` AS realName,
+            username AS userName
+        FROM
+            upms_user
+        WHERE
+            username = #{userName}
+        AND del_flag = 0
+        AND ENABLE = 1
+        LIMIT 1
+    </select>
+
+    <select id="getTestUserById" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+            user_id AS userId,
+            `phone`,
+            `real_name` AS realName,
+            user_name AS userName,
+            source,
+            password
+        FROM
+            test_user_execution
+        WHERE
+            1 = 1
+        AND user_id = #{userId}
+    </select>
+
+
+    <select id="getSupplierUsersByList" resultType="com.allen.testplatform.modules.databuilder.model.common.UcUser">
+        <include refid="sql_get_supplier_user" />
+        <if test="providerGuidList != null and providerGuidList.size() >0">
+            AND bs.ming_yuan_id IN
+            <foreach collection="providerGuidList" open="(" separator="," close=")" item="providerGuid">
+                #{providerGuid}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="getSupplierUsers" resultType="com.allen.testplatform.modules.databuilder.model.common.UcUser">
+        <include refid="sql_get_supplier_user" />
+        <if test="providerGuid != null and providerGuid != ''">
+            AND bs.ming_yuan_id =#{providerGuid}
+        </if>
+    </select>
+
+    <select id="getUsersByIdList" resultType="com.allen.testplatform.modules.databuilder.model.common.UcUser">
+        <if test="source != null and source == 'PS'">
+            <include refid="sql_get_ps_user" />
+        </if>
+        <if test="source != null and source == 'SUPPLIER'">
+            <include refid="sql_get_supplier_user" />
+        </if>
+        <if test="source == null">
+            <include refid="sql_get_common_user" />
+        </if>
+        <if test="userIdList != null and userIdList.size() >0">
+            AND uu.id IN
+            <foreach collection="userIdList" open="(" separator="," close=")" item="userId">
+                #{userId}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="getUserByOthers" resultType="com.allen.testplatform.modules.databuilder.model.common.UcUser">
+        <if test="source != null and source == 'PS'">
+            <include refid="sql_get_ps_user" />
+        </if>
+        <if test="source != null and source == 'SUPPLIER'">
+            <include refid="sql_get_supplier_user" />
+            <if test="providerGuid != null and providerGuid != ''">
+                AND bs.ming_yuan_id =#{providerGuid}
+            </if>
+        </if>
+        <if test="source == null">
+            <include refid="sql_get_common_user" />
+        </if>
+
+        <if test="userName != null and userName != ''">
+            AND uu.username = #{userName}
+        </if>
+        <if test="realName != null and realName != ''">
+            AND uu.`name` = #{realName}
+        </if>
+        <if test="phone != null and phone != ''">
+            AND uu.phone = #{phone}
+        </if>
+    </select>
+
+    <select id="getUserByIdSource" resultType="com.allen.testplatform.modules.databuilder.model.common.UcUser">
+        <if test="source != null and source == 'PS'">
+            <include refid="sql_get_ps_user" />
+        </if>
+        <if test="source != null and source == 'SUPPLIER'">
+            <include refid="sql_get_supplier_user" />
+        </if>
+        <if test="source == null">
+            <include refid="sql_get_common_user" />
+        </if>
+        AND uu.id=#{userId}
+        GROUP BY uu.id
+    </select>
+
+    <select id="getUserById" resultType="com.allen.testplatform.modules.databuilder.model.common.UcUser">
+        <include refid="sql_get_common_user" />
+        AND uu.id = #{userId}
+    </select>
+
+    <sql id="sql_get_supplier_user">
+        SELECT
+        uu.id AS userId,
+        uu.`name` AS realName,
+        uu.phone AS userName,
+        uu.phone AS phone,
+        uu.aes_password AS `password`,
+        bs.company_name AS providerName,
+        bs.ming_yuan_id AS providerGuid,
+        bus.position_name AS position,
+        uu.source AS source
+        FROM
+        business_user_supplier bus
+        LEFT JOIN upms_user uu ON uu.id = bus.user_id AND uu.del_flag=0 AND uu.enable=1
+        LEFT JOIN business_supplier bs ON bs.organization_id = bus.organization_id AND bs.del_flag=0
+        LEFT JOIN business_user bu ON bu.user_id = bus.user_id
+        WHERE
+        uu.source = 'SUPPLIER' AND bus.enable=1
+
+    </sql>
+
+    <sql id="sql_get_ps_user">
+        SELECT
+        uu.id AS userId,
+        uu.`name` AS realName,
+        uu.username AS userName,
+        uu.phone AS phone,
+        uu.aes_password AS `password`,
+        uu.source AS source,
+        up.`name` AS position
+        FROM
+        upms_user uu
+        LEFT JOIN upms_user_position_relate uupr ON uupr.user_id = uu.id
+        AND uupr.source = 'PS'
+        LEFT JOIN upms_position up ON up.id = uupr.position_id
+        AND up.del_flag = 0
+        WHERE
+        uu.del_flag = 0
+        AND uu.`enable` = 1
+        AND uu.source IS NOT NULL
+    </sql>
+
+    <sql id="sql_get_common_user">
+        SELECT
+        uu.id AS userId,
+        uu.`name` AS realName,
+        uu.username AS userName,
+        uu.phone AS phone,
+        uu.aes_password AS `password`,
+        uu.source AS source
+        FROM
+        upms_user uu
+        WHERE
+        uu.del_flag = 0
+        AND uu.`enable` = 1
+        AND uu.source IS NOT NULL
+    </sql>
+
+</mapper>

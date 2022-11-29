@@ -1,0 +1,22 @@
+CREATE TABLE `version_manage` (
+  `id` BIGINT ( 20 ) NOT NULL COMMENT '主键ID',
+  `version_code` VARCHAR ( 20 ) DEFAULT NULL COMMENT '版本code',
+  `version_content` VARCHAR ( 1000 ) DEFAULT NULL COMMENT '版本更新内容',
+  `version_type` VARCHAR ( 10 ) DEFAULT NULL COMMENT '版本类型 DEBUG/PROD',
+  `team_code` VARCHAR ( 20 ) DEFAULT NULL COMMENT '团队code JX-匠星 XWH-希望云 DWWB-地网无边 JSPT-技术平台 DSJPT-大数据平台 ALL-所有团队',
+  `team_name` VARCHAR ( 20 ) DEFAULT NULL COMMENT '团队name',
+  `terminal_code` VARCHAR ( 20 ) DEFAULT NULL COMMENT '客户端code JX_APP-匠星APP',
+  `terminal_name` VARCHAR ( 20 ) DEFAULT NULL COMMENT '客户端名称',
+  `release_time` datetime DEFAULT NULL COMMENT '发版时间',
+  `developer` VARCHAR ( 50 ) DEFAULT NULL COMMENT '开发者姓名',
+  `tester` VARCHAR ( 50 ) DEFAULT NULL COMMENT '测试人员姓名',
+  `file_name` VARCHAR ( 255 ) DEFAULT NULL COMMENT '文件名',
+  `oss_key` VARCHAR ( 255 ) DEFAULT NULL COMMENT '阿里云Key',
+  `url` VARCHAR ( 1000 ) DEFAULT NULL COMMENT '文件地址',
+  `create_user` VARCHAR ( 50 ) DEFAULT NULL COMMENT '创建人',
+  `create_date` datetime DEFAULT NULL COMMENT '创建时间',
+  `update_user` VARCHAR ( 50 ) DEFAULT NULL COMMENT '更新人',
+  `update_date` datetime DEFAULT NULL COMMENT '更新时间',
+  `del_flag` TINYINT ( 1 ) NOT NULL COMMENT '删除标识',
+  PRIMARY KEY ( `id` )
+) ENGINE = INNODB DEFAULT CHARSET = utf8mb4 COMMENT = '测试平台-被测客户端版本管理';

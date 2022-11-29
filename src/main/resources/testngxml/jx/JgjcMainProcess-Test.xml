@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite thread-count="1" parallel="false" name="景观检查-集中调度测试">
+
+    <test preserve-order="true" name="匠星APP-Android端-景观检查-主流程测试" parallel="false">
+        <classes>
+            <!--局部参数，@name和@value必填，分别为参数名和参数值，如果参数名与全局参数一致，则覆盖全局参数取值-->
+            <class name="com.allen.testplatform.testscripts.testcase.jx.JgjcMainProcessTest">
+            </class>
+        </classes>
+    </test>
+
+    <listeners>
+        <listener class-name="com.allen.testplatform.testscripts.listener.ExtentTestNGIReporterListener" />
+        <listener class-name="com.allen.testplatform.testscripts.listener.AssertListener" />
+    </listeners>
+
+</suite>

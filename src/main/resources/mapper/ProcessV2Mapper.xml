@@ -1,0 +1,525 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allen.testplatform.modules.databuilder.mapper.ProcessV2Mapper">
+
+    <resultMap id="getSectionInfo" autoMapping="true"
+               type="com.allen.testplatform.modules.databuilder.model.common.SectionInfo">
+        <result column="construction" property="construction" typeHandler="com.allen.testplatform.common.handler.MySplitHandler"></result>
+        <result column="constructionGuid" property="constructionGuid" typeHandler="com.allen.testplatform.common.handler.MySplitHandler"></result>
+    </resultMap>
+
+    <select id="getSectionInfo" resultMap="getSectionInfo">
+        SELECT
+            ze.id AS sectionId,
+            ze.`name` AS sectionName,
+            ze.org_code AS orgCode,
+            ze.org_name AS orgName,
+            ze.project_code AS projectCode,
+            ze.project_name AS projectName,
+            ze.stage_code AS stageCode,
+            ze.stage_name AS stageName,
+            GROUP_CONCAT( zsc.construction ) AS construction,
+            GROUP_CONCAT( zsc.construction_guid ) AS constructionGuid,
+            ze.contractor,
+            ze.contractor_guid AS contractorGuid,
+            ze.supervisor,
+            ze.supervisor_guid AS supervisorGuid,
+            ze.type AS sectionType,
+            ze.picture AS sectionPicture
+        FROM
+            zxxj_section_construction zsc
+        LEFT JOIN zxxj_section ze ON zsc.section_id = ze.id
+        WHERE
+            ze.del_flag = 0
+        <if test="sectionName != null and sectionName != ''">
+            AND ze.`name` = #{sectionName}
+        </if>
+        <if test="sectionId != null and sectionId != ''">
+            AND ze.id = #{sectionId}
+        </if>
+        <if test="sectionType != null and sectionType != ''">
+            AND type = #{sectionType}
+        </if>
+    </select>
+
+    <select id="getLastCheck" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        pc1.id AS checkId,
+        pc1.`name` AS checkName,
+        pc1.path AS pathCode,
+        pc1.type AS processType,
+        pc1.part AS checkPartType,
+        pc1.parent_id AS parentId,
+        pc1.if_last AS ifLast
+        FROM
+            process_check pc1 LEFT JOIN process_check pc2 ON pc2.id = pc1.parent_id AND pc2.del_flag=0
+        WHERE
+        pc1.del_flag = 0
+        AND pc1.if_last = 1
+        <if test="checkName != null and checkName != ''">
+            AND pc1.`name` LIKE CONCAT('%',#{checkName},'%')
+        </if>
+        <if test="parentCheckName != null and parentCheckName != ''">
+            AND pc2.`name` LIKE CONCAT('%',#{parentCheckName},'%')
+        </if>
+    </select>
+
+    <select id="getAllCheckList" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        pc1.id AS checkId,
+        pc1.`name` AS checkName,
+        pc1.path AS pathCode,
+        pc1.type AS processType,
+        pc1.part AS checkPartType,
+        pc1.parent_id AS parentId,
+        pc1.if_last AS ifLast
+        FROM
+        process_check pc1
+        WHERE
+        pc1.del_flag = 0
+    </select>
+
+    <select id="getLastCheckById" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        id AS checkId,
+        `name` AS checkName,
+        path AS pathCode,
+        part AS checkPartType
+        FROM
+        process_check
+        WHERE
+        del_flag = 0
+        AND if_last = 1
+        <if test="checkId != null and checkId != ''">
+            AND id = #{checkId}
+        </if>
+    </select>
+
+    <select id="getCheckPathName" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+            GROUP_CONCAT(id SEPARATOR '-')  AS checkPathCode,
+            GROUP_CONCAT(`name` SEPARATOR '-') AS checkPathName
+        FROM
+        process_check
+        WHERE
+        1 = 1
+        <if test="checkIdList != null and checkIdList.size > 0">
+            <foreach collection="checkIdList" item="checkId" separator="," open=" AND id IN (" close=")">
+                #{checkId}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="getCheckFlow" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        pcf.id AS flowId,
+        pcf.node,
+        pcf.node_id AS nodeId,
+        pcf.parent_node_id AS parentNodeId,
+        pcf.role_type AS roleType,
+        pcf.if_appoint AS ifAppoint
+        FROM
+        process_check_flow pcf
+        LEFT JOIN process_check pc ON pc.id = pcf.check_id AND pc.del_flag = 0
+        WHERE
+        pcf.del_flag = 0
+        AND pcf.check_id = #{checkId}
+    </select>
+
+    <select id="getCheckPoint" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+            pcp.id AS pointId,
+            pcp.title AS title,
+            pcp.remark AS remark
+        FROM
+            process_check_point pcp
+        LEFT JOIN process_check pc ON pc.id = pcp.check_id
+        AND pc.del_flag = 0
+        WHERE
+            1 = 1
+        AND pcp.check_id = #{checkId}
+    </select>
+
+    <select id="getPartByBan" resultType="com.alibaba.fastjson.JSONObject" flushCache="true">
+        SELECT
+            r.ban_code AS partCode,
+            r.ban_name AS partName,
+            r.ban_code AS banCode,
+            r.ban_name AS banName,
+        FROM
+            room r
+        WHERE
+            r.del_flag = 0
+        AND r.ban_code IN (
+            SELECT ban_code FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId})
+        AND r.ban_code NOT IN ( SELECT part_code FROM process_detail WHERE del_flag = 0 AND check_id = #{checkId} AND section_id = #{sectionId})
+        <if test="hasSectionUnit == 1 or hasSectionUnit == true">
+            AND r.unit IN ( SELECT unit FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId} )
+        </if>
+        <if test="roomQuery.banName != null and roomQuery.banName != ''">
+            AND r.ban_name = #{roomQuery.banName}
+        </if>
+        GROUP BY r.ban_code
+    </select>
+
+    <select id="getPartByFloor" resultType="com.alibaba.fastjson.JSONObject" flushCache="true">
+
+        SELECT
+            r.ban_name AS banName,
+            r.ban_code AS banCode,
+            CONCAT_WS( '-', r.ban_name, CONCAT( r.floor, '层' ) ) AS partName,
+            r.floor AS partCode
+        FROM
+            room r
+        WHERE
+            r.del_flag = 0
+        AND r.ban_code IN (
+            SELECT
+                ban_code
+            FROM
+                zxxj_section_scope
+            WHERE
+                1 = 1
+            AND section_id = #{sectionId})
+        AND r.floor NOT IN (SELECT part_code FROM process_detail WHERE del_flag = 0 AND check_id = #{checkId}  AND section_id = #{sectionId})
+        <if test="hasSectionUnit == 1 or hasSectionUnit == true">
+            AND r.unit IN ( SELECT unit FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId} )
+        </if>
+        <if test="roomQuery.banName != null and roomQuery.banName != ''">
+            AND r.ban_name = #{roomQuery.banName}
+        </if>
+        <if test="roomQuery.floorName != null and roomQuery.floorName != ''">
+            AND r.floor = #{roomQuery.floorName}
+        </if>
+        GROUP BY partCode
+    </select>
+
+    <select id="getPartByUnitFloor" resultType="com.alibaba.fastjson.JSONObject" flushCache="true">
+        SELECT
+            r.banName,
+            r.banCode,
+            r.partName,
+            r.partCode
+        FROM
+        (
+            SELECT
+                ban_name AS banName,
+                ban_code AS banCode,
+                CASE WHEN unit = '' or unit is null THEN CONCAT_WS( '-', ban_name, CONCAT( floor, '层' ) )
+                    ELSE CONCAT_WS( '-', ban_name, CONCAT( unit, '单元' ), CONCAT( floor, '层' ) ) END AS partName,
+                CASE WHEN unit = '' or unit is null THEN floor
+                    ELSE CONCAT_WS( '&amp;', CONCAT_WS( '-', ban_code, unit ), floor ) END AS partCode
+            FROM
+                room
+            WHERE
+                del_flag = 0
+            AND ban_code IN ( SELECT ban_code FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId} )
+            <if test="hasSectionUnit == 1 or hasSectionUnit == true">
+                AND unit IN ( SELECT unit FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId} )
+            </if>
+            <if test="roomQuery.banName != null and roomQuery.banName != ''">
+                AND ban_name = #{roomQuery.banName}
+            </if>
+            <if test="roomQuery.floorName != null and roomQuery.floorName != ''">
+                AND floor = #{roomQuery.floorName}
+            </if>
+            <if test="roomQuery.unitName != null and roomQuery.unitName != ''">
+                AND unit = #{roomQuery.unitName}
+            </if>
+            GROUP BY partName ) r
+        WHERE r.partCode  NOT IN (SELECT part_code FROM process_detail WHERE del_flag=0 AND check_id = #{checkId} AND section_id = #{sectionId})
+        OR r.partName NOT IN (SELECT part_name FROM process_detail WHERE del_flag=0 AND check_id = #{checkId} AND section_id = #{sectionId})
+    </select>
+
+    <select id="getPartByRoom" resultType="com.alibaba.fastjson.JSONObject" flushCache="true">
+        SELECT
+            r.banName,
+            r.banCode,
+            r.partName,
+            r.partCode
+        FROM
+            (
+                SELECT
+                    ban_name AS banName,
+                    ban_code AS banCode,
+                    CASE WHEN unit = '' or unit is null
+                            THEN CONCAT_WS( '&amp;', ban_code, floor, room_code )
+                         ELSE CONCAT_WS( '&amp;', ban_code, CONCAT_WS( '-', ban_code, unit ), floor, room_code ) END AS partCode,
+                    CASE WHEN unit = '' or unit is null
+                            THEN CONCAT_WS( '-', ban_name, CONCAT( floor, '层' ), rooms )
+                         ELSE CONCAT_WS( '-', ban_name, CONCAT( unit, '单元' ), CONCAT( floor, '层' ), rooms ) END  AS partName
+                FROM
+                    room
+                WHERE
+                    del_flag = 0
+                AND ban_code IN (
+                    SELECT ban_code FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId})
+                <if test="hasSectionUnit == 1 or hasSectionUnit == true">
+                    AND unit IN ( SELECT unit FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId} )
+                </if>
+                <if test="roomQuery.banName != null and roomQuery.banName != ''">
+                    AND ban_name = #{roomQuery.banName}
+                </if>
+                <if test="roomQuery.floorName != null and roomQuery.floorName != ''">
+                    AND floor = #{roomQuery.floorName}
+                </if>
+                <if test="roomQuery.unitName != null and roomQuery.unitName != ''">
+                    AND unit = #{roomQuery.unitName}
+                </if>
+                <if test="roomQuery.roomName != null and roomQuery.roomName != ''">
+                    AND rooms = #{roomQuery.roomName}
+                </if>
+                GROUP BY partCode) r
+        WHERE r.partCode  NOT IN (SELECT part_code FROM process_detail WHERE del_flag=0 AND check_id = #{checkId} AND section_id = #{sectionId})
+    </select>
+
+    <select id="getPartByCustom" resultType="com.alibaba.fastjson.JSONObject" flushCache="true">
+        SELECT
+            part_name AS partName,
+            part_code AS partCode
+        FROM
+            process_custom_check_batch
+        WHERE
+            del_flag = 0
+        <if test="checkId != null and checkId != ''">
+            AND check_id = #{checkId}
+        </if>
+        <if test="sectionId != null and sectionId != ''">
+            AND section_id = #{sectionId}
+        </if>
+    </select>
+
+    <select id="getBatchUserId" resultType="long">
+        SELECT
+        user_id AS userId
+        FROM
+        check_batch_user
+        WHERE
+        del_flag = 0
+        <if test="stageCode != null and stageCode != ''">
+            AND stage_code = #{stageCode}
+        </if>
+        <if test="roleType != null and roleType != ''">
+            AND role_type = #{roleType}
+        </if>
+        <if test="category != null and category != ''">
+            AND category = #{category}
+        </if>
+    </select>
+
+    <select id="getBatchUser" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        user_id AS userId,
+        user_code AS userName,
+        real_name AS realName
+        FROM
+        check_batch_user
+        WHERE
+        del_flag = 0
+        <if test="stageCode != null and stageCode != ''">
+            AND stage_code = #{stageCode}
+        </if>
+        <if test="roleType != null and roleType != ''">
+            AND role_type = #{roleType}
+        </if>
+        <if test="category != null and category != ''">
+            AND category = #{category}
+        </if>
+    </select>
+
+    <select id="getDetailCheckFlow" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+            cf.detail_id AS detailId,
+            cf.flow_id AS flowId,
+            cf.node,
+            cf.if_appoint AS ifAppoint,
+            cf.role_type AS roleType,
+            cf.`status`
+        FROM
+        process_detail_check_flow cf
+        WHERE
+        cf.del_flag = 0
+        AND cf.detail_id = #{detailId}
+        <if test="flowId != null and flowId != ''">
+            AND cf.flow_id = #{flowId}
+        </if>
+        <if test="node != null and node != ''">
+            AND cf.node = #{node}
+        </if>
+    </select>
+
+    <select id="getDetailHandleFlow" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        cf.detail_id AS detailId,
+        cf.flow_id AS flowId,
+        cf.node,
+        cf.if_appoint AS ifAppoint,
+        cf.role_type AS roleType,
+        cf.`status`,
+        h.next_flow_id AS nextFlowId,
+        h.user_id AS userId,
+        h.real_name AS realName,
+        h.company_guid AS companyGuid,
+        h.company_name AS companyName
+        FROM
+        process_detail_check_flow cf
+        LEFT JOIN process_detail_handler h ON h.next_flow_id = cf.flow_id AND h.del_flag=0
+        WHERE
+        cf.del_flag = 0
+        AND cf.detail_id = #{detailId}
+        AND h.detail_id = #{detailId}
+        <if test="flowId != null and flowId != ''">
+            AND cf.flow_id = #{flowId}
+        </if>
+        <if test="node != null and node != ''">
+            AND cf.node = #{node}
+        </if>
+    </select>
+
+    <select id="getTargetDetailIdList" resultType="Long">
+        SELECT id FROM process_detail t WHERE 1 = 1
+        <if test="detailQuery.orgName !=null and detailQuery.orgName != ''">
+            and t.org_name = #{detailQuery.orgName}
+        </if>
+        <if test="detailQuery.projectName !=null and detailQuery.projectName != ''">
+            and t.project_name = #{detailQuery.projectName}
+        </if>
+        <if test="detailQuery.stageName !=null and detailQuery.stageName != ''">
+            and t.stage_name = #{detailQuery.stageName}
+        </if>
+        <if test="detailQuery.checkType !=null ">
+            and t.check_type = #{detailQuery.checkType}
+        </if>
+        <if test="detailQuery.sectionName !=null and detailQuery.sectionName != ''">
+            and t.section_name = #{detailQuery.sectionName}
+        </if>
+        <if test="detailQuery.checkPathName !=null and detailQuery.checkPathName != ''">
+            and t.check_path_name like concat('%',#{detailQuery.checkPathName},'%')
+        </if>
+        <if test="detailQuery.partName !=null and detailQuery.partName != ''">
+            and t.part_name like concat('%',#{detailQuery.partName},'%')
+        </if>
+        <if test="detailQuery.submitCompanyName !=null and detailQuery.submitCompanyName != ''">
+            and t.id in (
+            select cf.detail_id from process_detail_check_flow cf where
+            cf.company_name like concat('%',#{detailQuery.submitCompanyName},'%') and cf.role_type=1)
+        </if>
+        <if test="detailQuery.acceptCompanyName !=null and detailQuery.acceptCompanyName != ''">
+            and t.id in (
+            select cf.detail_id from process_detail_check_flow cf where
+            cf.company_name like concat('%',#{detailQuery.acceptCompanyName},'%') and cf.role_type=2)
+        </if>
+        <if test="detailQuery.submitUser !=null and detailQuery.submitUser != ''">
+            and t.id in (
+            select cf.detail_id from process_detail_check_flow cf where
+            cf.real_name like concat('%',#{detailQuery.submitUser},'%') and cf.node=1)
+        </if>
+        <if test="detailQuery.acceptUser !=null and detailQuery.acceptUser != ''">
+            and t.id in (
+            select cf.detail_id from process_detail_check_flow cf where
+            cf.real_name like concat('%',#{detailQuery.acceptUser},'%') and cf.node=2)
+        </if>
+        <if test="detailQuery.checkUser !=null and detailQuery.checkUser != ''">
+            and t.id in (
+            select cf.detail_id from process_detail_check_flow cf where
+            cf.real_name like concat('%',#{detailQuery.checkUser},'%') and cf.node=3)
+        </if>
+        <if test="detailQuery.submitTimeStart != null ">
+            and t.report_time &gt; #{detailQuery.submitTimeStart}
+        </if>
+        <if test="detailQuery.submitTimeEnd!= null ">
+            and t.report_time &lt; #{detailQuery.submitTimeEnd}
+        </if>
+        <if test="detailQuery.acceptTimeStart!= null ">
+            and t.inspection_time &gt; #{detailQuery.acceptTimeStart}
+        </if>
+        <if test="detailQuery.acceptTimeEnd!= null ">
+            and t.inspection_time &lt; #{detailQuery.acceptTimeEnd}
+        </if>
+        <if test="detailQuery.checkTimeStart!= null ">
+            and t.spot_check_time &gt; #{detailQuery.checkTimeStart}
+        </if>
+        <if test="detailQuery.checkTimeEnd!= null ">
+            and t.spot_check_time &lt; #{detailQuery.checkTimeEnd}
+        </if>
+        <if test="detailQuery.status != null and detailQuery.status != ''">
+            and t.status in
+            <foreach item="item" index="index" collection="detailQuery.status.split(',')" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+        and t.del_flag = 0
+        order by t.create_date desc
+    </select>
+
+    <select id="getProblemPartInfo" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+            r.ban_name AS banName,
+            r.ban_code AS banCode,
+            r.unit,
+            r.floor,
+            r.rooms,
+            r.room_name AS roomName,
+            r.room_code AS roomCode,
+            ht.image_url AS checkImageUrl,
+            ht.id AS houseTypeId
+        FROM
+            room r
+        LEFT JOIN house_type ht ON ht.id = r.project_house_type_id AND ht.del_flag = 0
+        WHERE
+            r.del_flag = 0
+            AND r.ban_code IN ( SELECT ban_code FROM zxxj_section_scope WHERE 1 = 1 AND section_id = 1498845212762828801 )
+        <if test="hasSectionUnit == 1 or hasSectionUnit == true">
+            AND unit IN ( SELECT unit FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId} )
+        </if>
+        <if test="roomQuery.banName != null and roomQuery.banName != ''">
+            AND r.ban_name = #{roomQuery.banName}
+        </if>
+        <if test="roomQuery.unitName != null and roomQuery.unitName != ''">
+            AND r.unit = #{roomQuery.unitName}
+        </if>
+        <if test="roomQuery.floorName != null and roomQuery.floorName != ''">
+            AND r.floor = #{roomQuery.floorName}
+        </if>
+        <if test="roomQuery.roomName != null and roomQuery.roomName != ''">
+            AND r.rooms = #{roomQuery.roomName}
+        </if>
+            AND ht.check_type=1
+        GROUP BY r.room_code
+
+    </select>
+
+    <select id="getIssuesInDetail" resultType="com.allen.testplatform.modules.databuilder.model.process.entity.ProcessDetailIssue">
+        SELECT
+        *
+        FROM
+        process_detail_issue
+        WHERE
+        detail_id = #{detailId}
+        <if test="issueStatus != null and issueStatus.size > 0">
+            AND `status` IN
+            <foreach collection="issueStatus" item="status" separator="," open="(" close=")">
+                #{status}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="getSectionByIssue" resultType="com.allen.testplatform.modules.databuilder.model.common.SectionInfo">
+        SELECT zs.* from process_detail pd left join process_detail_issue pdi ON pdi.detail_id = pd.id AND pdi.del_flag=0
+        left join zxxj_section zs on zs.id = pd.section_id AND zs.del_flag=0 WHERE pd.del_flag=0
+        <if test="issueId != null and issueId != ''">
+            AND pdi.id=#{issueId}
+        </if>
+        <if test="detailId != null and detailId != ''">
+            AND pd.id=#{detailId}
+        </if>
+    </select>
+
+    <select id="assertDetail" resultType="com.allen.testplatform.modules.databuilder.model.process.entity.ProcessDetail" flushCache="false">
+        SELECT pd.* FROM process_detail pd LEFT JOIN process_detail_check_flow pdcf on pd.id = pdcf.detail_id WHERE pdcf.comment = #{content}
+    </select>
+
+    <select id="countDetail" resultType="int" flushCache="false">
+        SELECT COUNT(*) FROM process_detail WHERE del_flag = 0 AND stage_code= #{stageCode}
+    </select>
+</mapper>

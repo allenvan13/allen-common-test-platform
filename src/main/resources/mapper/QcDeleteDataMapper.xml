@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allen.testplatform.modules.databuilder.mapper.QcDeleteDataMapper">
+
+    <delete id="removeBacklogBySn">
+        DELETE FROM backlog WHERE 1 = 1 AND sn IN (
+        <foreach collection="snList" item="sn" separator="," open="(" close=")">
+            #{sn}
+        </foreach>
+        )
+    </delete>
+
+    <select id="getProcessDetailSnList" resultType="string">
+        SELECT DISTINCT pd.code FROM process_detail pd LEFT JOIN process_detail_check_flow pdcf on pd.id = pdcf.detail_id WHERE pdcf.comment IN
+        <foreach collection="removeContentList" item="content" separator="," open="(" close=")">
+            #{content}
+        </foreach>
+    </select>
+
+    <delete id="removeProcessBacklogByContent">
+        DELETE from backlog WHERE sn in
+            (SELECT `code` FROM process_detail WHERE id IN
+                (SELECT detail_id FROM process_detail_check_flow WHERE
+                comment IN
+                    <foreach collection="removeContentList" item="content" separator="," open="(" close=")">
+                        #{content}
+                    </foreach>
+        ))
+    </delete>
+
+    <delete id="removeProcessDetailAndProblemByIds">
+        DELETE pd,
+            pdi,
+            pdh,
+            pdcf,
+            pdcp
+        FROM
+            process_detail pd
+        LEFT JOIN process_detail_point pdp ON pd.id = pdp.detail_id
+        LEFT JOIN process_detail_issue pdi ON pd.id = pdi.detail_id
+        LEFT JOIN process_detail_handler pdh ON pd.id = pdh.detail_id
+        LEFT JOIN process_detail_check_flow pdcf ON pd.id = pdcf.detail_id
+        LEFT JOIN process_detail_check_point pdcp ON pd.id = pdcp.detail_id
+        WHERE
+            1 = 1
+            AND pd.id IN
+            <foreach collection="detailIdList" item="detailId" separator="," open="(" close=")">
+                #{detailId}
+            </foreach>
+    </delete>
+
+    <delete id="removeProcessDetailAndProblemByContent">
+        DELETE pd,
+            pdi,
+            pdh,
+            pdcf,
+            pdcp
+        FROM
+        process_detail pd
+        LEFT JOIN process_detail_point pdp ON pd.id = pdp.detail_id
+        LEFT JOIN process_detail_issue pdi ON pd.id = pdi.detail_id
+        LEFT JOIN process_detail_handler pdh ON pd.id = pdh.detail_id
+        LEFT JOIN process_detail_check_flow pdcf ON pd.id = pdcf.detail_id
+        LEFT JOIN process_detail_check_point pdcp ON pd.id = pdcp.detail_id
+        WHERE
+        1 = 1
+        <if test="removeContentList !=null and removeContentList.size > 0">
+            AND pdcf.comment IN
+            <foreach collection="removeContentList" item="content" separator="," open="(" close=")">
+                #{content}
+            </foreach>
+        </if>
+    </delete>
+
+    <delete id="removeTicketBacklogByTypeContent">
+        DELETE FROM backlog WHERE sn IN (SELECT sn from tk_ticket WHERE category = #{category} AND del_flag = 0
+        <if test="removeContentList !=null and removeContentList.size > 0">
+        AND content IN
+            <foreach collection="removeContentList" item="content" separator="," open="(" close=")">
+                #{content}
+            </foreach>
+        </if>)
+    </delete>
+
+    <delete id="removeTicketByTypeContent">
+        DELETE tk,
+        tkl,
+        tkt,
+        tkp
+        FROM
+        tk_ticket tk
+        LEFT JOIN tk_ticket_log tkl ON tk.id = tkl.ticket_id AND tkl.del_flag=0
+        LEFT JOIN tk_ticket_gcjc tkt ON tk.id = tkt.ticket_id AND tkt.del_flag=0
+        LEFT JOIN tk_ticket_processor tkp ON tk.id = tkp.ticket_id AND tkp.del_flag=0
+        WHERE tk.del_flag=0 AND tk.category = #{category}
+
+        <if test="removeContentList !=null and removeContentList.size > 0">
+            AND tk.content IN
+            <foreach collection="removeContentList" item="content" separator="," open="(" close=")">
+                #{content}
+            </foreach>
+        </if>
+
+    </delete>
+
+    <delete id="removeZxxjOrderByContent">
+        DELETE
+        zxxj_order,
+        zxxj_order_extension,
+        zxxj_order_log,
+        zxxj_order_processor
+        FROM
+        zxxj_order
+        LEFT JOIN zxxj_order_extension ON zxxj_order.id = zxxj_order_extension.order_id
+        LEFT JOIN zxxj_order_log ON zxxj_order.id = zxxj_order_log.order_id
+        LEFT JOIN zxxj_order_processor ON zxxj_order.id = zxxj_order_processor.order_id
+        WHERE
+        zxxj_order.del_flag = 0
+        <if test="removeContentList !=null and removeContentList.size > 0">
+
+            AND zxxj_order_log.content IN
+            <foreach collection="removeContentList" item="content" separator="," open="(" close=")">
+                #{content}
+            </foreach>
+        </if>
+    </delete>
+
+    <delete id="removeZxxjBacklogByContent">
+        DELETE FROM backlog WHERE sn IN (SELECT o.sn FROM zxxj_order o LEFT JOIN zxxj_order_log ol ON ol.order_id = o.id AND ol.del_flag=0
+        WHERE o.del_flag = 0
+        <if test="removeContentList !=null and removeContentList.size > 0">
+            AND ol.content IN
+            <foreach collection="removeContentList" item="content" separator="," open="(" close=")">
+                #{content}
+            </foreach>
+        </if>
+        )
+    </delete>
+
+</mapper>

@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allen.testplatform.modules.databuilder.mapper.FhcyV2Mapper">
+    <delete id="removeBacklogData">
+        DELETE FROM backlog WHERE sn IN (SELECT sn from tk_ticket WHERE category='XX.XXXXXXX.FHCY' AND del_flag = 0
+        <if test="removeContentList !=null and removeContentList.size > 0">
+        AND content IN
+            <foreach collection="removeContentList" item="content" separator="," open="(" close=")">
+                #{content}
+            </foreach>
+        </if>)
+    </delete>
+    <delete id="removeTicketData">
+        DELETE tk,
+        tkl,
+        tkt,
+        tkp
+        FROM
+        tk_ticket tk
+        LEFT JOIN tk_ticket_log tkl ON tk.id = tkl.ticket_id AND tkl.del_flag=0
+        LEFT JOIN tk_ticket_gcjc tkt ON tk.id = tkt.ticket_id AND tkt.del_flag=0
+        LEFT JOIN tk_ticket_processor tkp ON tk.id = tkp.ticket_id AND tkp.del_flag=0
+        WHERE tk.del_flag=0 AND tk.category = ${category}
+        <if test="removeContentList !=null and removeContentList.size > 0">
+            AND tk.content IN
+            <foreach collection="removeContentList" item="content" separator="," open="(" close=")">
+                #{content}
+            </foreach>
+        </if>
+
+    </delete>
+
+    <select id="assertTicket" resultType="com.allen.testplatform.modules.databuilder.model.fhcy.entity.TkTicket" flushCache="false">
+        SELECT * FROM tk_ticket WHERE content =#{content} AND del_flag = 0
+    </select>
+
+    <select id="getCheckBatch" resultType="com.allen.testplatform.modules.databuilder.model.common.CheckBatch">
+        SELECT * from check_batch WHERE del_flag=0 AND `name`= #{batchName} AND category='XX.XXXXXXX.FHCY';
+    </select>
+
+    <select id="getCheckCodeList" resultType="string">
+        SELECT
+        ci3.`code`
+        FROM
+        check_item ci3
+        LEFT JOIN check_item ci2 ON ci2.id = ci3.parent_id AND ci2.del_flag = 0
+        LEFT JOIN check_item ci1 ON ci1.id = ci2.parent_id AND ci1.del_flag = 0
+        WHERE ci3.check_list_id = #{checkListId}
+        AND ci3.`enable` = 1
+        AND ci3.del_flag = 0
+        AND ci3.`level` = 3
+        <if test="firstCheckName != null and firstCheckName != ''">
+            AND ci1.`name` = #{firstCheckName}
+        </if>
+        <if test="secondCheckName != null and secondCheckName != ''">
+            AND ci2.`name` = #{secondCheckName}
+        </if>
+        <if test="lastCheckName != null and lastCheckName != ''">
+            AND ci3.`name` = #{lastCheckName}
+        </if>
+        <if test="pathCode != null and pathCode != ''">
+            AND ci3.`code` = #{pathCode}
+        </if>
+    </select>
+
+    <select id="getItemParentPath" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        ci1.id AS checkPartId,
+        ci1.`name` AS checkPartName,
+        ci2.id AS checkItemId,
+        ci2.`name` AS checkItemName,
+        ci3.id AS checkDescId,
+        ci3.`name` AS checkDescName
+        FROM
+        check_item ci3
+        LEFT JOIN check_item ci2 ON ci2.id = ci3.parent_id AND ci2.del_flag = 0
+        LEFT JOIN check_item ci1 ON ci1.id = ci2.parent_id AND ci1.del_flag = 0
+        WHERE
+        ci3.check_list_id = #{checkListId}
+        AND ci3.`code`= #{pathCode}
+        AND ci3.del_flag = 0
+    </select>
+
+    <select id="getCheckBatchRooms" resultType="com.allen.testplatform.modules.databuilder.model.common.BatchRoomInfo" >
+        SELECT
+        r.unit,
+        r.floor,
+        r.ban_code AS banCode,
+        r.ban_name AS banName,
+        r.room_code AS roomCode,
+        r.room_name AS roomName,
+        ht.image_url AS checkImageUrl,
+        ht.id AS houseTypeId,
+        ps.id  AS projectSiteId,
+        ps.part_name  AS projectSiteName
+        FROM
+        check_batch_room cbr
+        LEFT JOIN room r ON cbr.room_code = r.room_code AND r.del_flag = 0
+        LEFT JOIN house_type ht ON ht.id = r.check_house_type_id AND ht.del_flag = 0
+        LEFT JOIN house_relevance hr ON hr.house_id = ht.id AND hr.del_flag=0
+        LEFT JOIN project_site ps ON ps.division_position_id = hr.division_position_id AND ps.del_flag=0
+        WHERE
+        cbr.check_batch_id=#{batchId}
+        AND cbr.del_flag = 0
+        <if test="banName != null and banName != ''">
+            AND r.ban_name = #{banName}
+        </if>
+        <if test="unitName != null and unitName != ''">
+            AND r.unit = #{unitName}
+        </if>
+        <if test="floorName != null and floorName != ''">
+            AND r.floor = #{floorName}
+        </if>
+        <if test="roomName != null and roomName != ''">
+            AND r.rooms = #{roomName}
+        </if>
+    </select>
+
+    <select id="getAllSiteInProject" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        ps.id AS projectSiteId,
+        ps.part_name AS projectSiteName
+        FROM
+        project_site ps
+        WHERE
+            ps.project_code = #{projectCode}
+        AND ps.del_flag = 0
+        AND ps.open_status = 1
+        AND ps.category = 'XX.XXXXXXX.FHCY'
+    </select>
+
+    <select id="getAllRoleUsers" resultType="com.allen.testplatform.modules.databuilder.model.common.CheckUser">
+        SELECT CASE
+            cbu.role_type
+            WHEN '0' THEN
+            '查验人员'
+            WHEN '1' THEN
+            '整改人员'
+            WHEN '3' THEN
+            '抽检人员'
+            WHEN '4' THEN
+            '管理人员' ELSE cbu.role_type
+            END AS roleName,
+            cbu.role_type AS roleType,
+            cbu.real_name AS realName,
+            cbu.user_code AS userCode,
+            cbu.user_id AS userId
+        FROM
+            check_batch_user cbu
+        LEFT JOIN check_batch cb ON cb.id = cbu.check_batch_id
+        WHERE
+            cb.id = #{batchId}
+            AND cbu.del_flag = 0
+            GROUP BY
+            cbu.role_type,
+            cbu.user_code
+    </select>
+
+    <select id="getRectifyUsers" resultType="com.allen.testplatform.modules.databuilder.model.common.CheckUser">
+        SELECT
+        pae.emp_type AS empType,
+        pae.emp_name AS realName,
+        pae.emp_id AS userId,
+        pae.emp_code AS userCode,
+        pi.provider_name AS providerName,
+        pi.provider_guid AS providerGuid,
+        'SUPPLIER' as userType,
+        1 AS roleType,
+        '整改人员' AS roleName
+        FROM
+        provider_assoc_employees pae
+        LEFT JOIN provider_info pi ON pi.id = pae.provider_info_id
+        LEFT JOIN check_batch cb ON cb.stage_code = pi.stage_code
+        WHERE
+        cb.id = #{batchId}
+        AND pae.del_flag = 0
+        AND pi.del_flag = 0
+        GROUP BY
+        realName
+    </select>
+
+    <resultMap id="getTicketInfos" autoMapping="true"
+               type="com.allen.testplatform.modules.databuilder.model.common.TicketUserInfo">
+        <result column="ticketIds" property="ticketIds" typeHandler="com.allen.testplatform.common.handler.MySplitHandler"></result>
+    </resultMap>
+
+    <select id="getTicketInfos" resultMap="getTicketInfos">
+        SELECT
+        GROUP_CONCAT(t.id) AS ticketIds,
+        tp.processor_id AS processorId,
+        t.`status`
+        FROM
+        tk_ticket_processor tp
+        LEFT JOIN tk_ticket t ON t.id = tp.ticket_id
+        AND t.del_flag = 0
+        WHERE
+        1 = 1
+        <if test="tickerIds != null and tickerIds.size() > 0">
+            AND tp.ticket_id IN
+            <foreach collection="tickerIds" open="(" separator="," close=")" item="ticketId">
+                #{ticketId}
+            </foreach>
+        </if>
+        <if test="roleCode != null and roleCode != ''">
+            AND tp.role_type = #{roleCode}
+        </if>
+        <if test="ticketStatus != null and ticketStatus != ''">
+            AND t.`status` = #{ticketStatus}
+        </if>
+        AND tp.del_flag =0
+        GROUP BY tp.processor_id
+    </select>
+
+    <select id="getBatchTicketInfos" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        check_batch_id AS batchId,
+        GROUP_CONCAT( id ) AS ticketIds
+        FROM
+        tk_ticket
+        WHERE
+        1 =1
+        <if test="tickerIds != null and tickerIds.size() > 0">
+            AND id IN
+            <foreach collection="tickerIds" open="(" separator="," close=")" item="ticketId">
+                #{ticketId}
+            </foreach>
+        </if>
+        <if test="ticketStatus != null and ticketStatus != ''">
+            AND `status` = #{ticketStatus}
+        </if>
+        GROUP BY
+        batchId
+    </select>
+
+    <select id="getTicketIds" resultType="long">
+        SELECT
+        t.id AS ticketId
+        FROM
+        tk_ticket t
+        LEFT JOIN tk_ticket_processor tp ON t.id = tp.ticket_id
+        AND tp.del_flag = 0
+        WHERE
+        1 = 1
+        <if test="stageCode != null and stageCode != ''">
+            AND t.stage_code=#{stageCode}
+        </if>
+        <if test="ticketStatus != null and ticketStatus != ''">
+            AND t.`status` = #{ticketStatus}
+        </if>
+        <if test="batchId != null and batchId != ''">
+            AND t.check_batch_id = #{batchId}
+        </if>
+        <if test="processorId != null and processorId != ''">
+            AND tp.processor_id=#{processorId}
+        </if>
+        AND t.del_flag=0
+        GROUP BY t.id
+    </select>
+
+    <select id="getRectifyProcessIds" resultType="long">
+        SELECT
+        tp.processor_id AS processorId
+        FROM
+        tk_ticket_processor tp
+        LEFT JOIN tk_ticket t ON t.id = tp.ticket_id
+        AND tp.del_flag = 0
+        WHERE
+        1 = 1
+        <if test="stageCode != null and stageCode != ''">
+            AND t.stage_code=#{stageCode}
+        </if>
+        <if test="ticketStatus != null and ticketStatus != ''">
+            AND t.`status` = #{ticketStatus}
+        </if>
+        <if test="batchId != null and batchId != ''">
+            AND t.check_batch_id = #{batchId}
+        </if>
+        AND tp.role_type = 1
+        AND t.del_flag = 0
+        GROUP BY tp.processor_id
+    </select>
+
+</mapper>

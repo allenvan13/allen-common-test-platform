@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allen.testplatform.modules.databuilder.mapper.CommonCheckMapper">
+
+    <select id="getCheckUsers" resultType="com.allen.testplatform.modules.databuilder.model.common.CheckUser">
+        SELECT
+        check_batch_user.role_type AS roleType,
+        check_batch_user.real_name AS realName,
+        check_batch_user.user_id AS userId,
+        check_batch_user.user_code AS userCode,
+        check_batch_user.provider_guid AS providerGuid,
+        check_batch_user.provider_name AS providerName,
+        check_batch_user.position AS position,
+        CASE
+        WHEN check_batch_user.provider_guid IS NOT NULL THEN
+        'SUPPLIER' ELSE 'PS'
+        END AS userType
+        FROM
+        check_batch_user
+        WHERE
+            check_batch_user.del_flag = 0
+        <if test="stageCode != null and stageCode != ''">
+            AND check_batch_user.stage_code = #{stageCode}
+        </if>
+        <if test="category != null and category != ''">
+            AND check_batch_user.category = #{category}
+        </if>
+        <if test="roleType != null and roleType != ''">
+            AND check_batch_user.role_type = #{roleType}
+        </if>
+    </select>
+
+    <select id="getCheckItems" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+            check_item.id,
+            check_item.parent_id,
+            check_item.`code`,
+            check_item.`name`,
+            check_item.`level`,
+            check_item.write_off_days
+        FROM
+            check_item
+        WHERE
+            check_item.check_list_id = ( SELECT id FROM checklist WHERE category = #{category} AND org_code = #{orgCode} AND del_flag = 0 LIMIT 1 )
+        AND check_item.del_flag = 0
+    </select>
+
+    <select id="assertTicketCount" resultType="com.alibaba.fastjson.JSONObject" flushCache="false">
+        SELECT a.all,b.toRecitify,c.reRecitify,d.toReview,e.abnormalClose,f.normalClose FROM (SELECT COUNT(*) AS `all` FROM tk_ticket WHERE del_flag = 0 AND category=#{category} AND stage_code = #{stageCode}) a,
+        (SELECT COUNT(*) AS `toRecitify` FROM tk_ticket WHERE del_flag = 0 AND category=#{category} AND stage_code = #{stageCode} AND `status`='10') b ,
+        (SELECT COUNT(*) AS `reRecitify` FROM tk_ticket WHERE del_flag = 0 AND category=#{category} AND stage_code = #{stageCode} AND `status`='21') c ,
+        (SELECT COUNT(*) AS `toReview` FROM tk_ticket WHERE del_flag = 0 AND category=#{category} AND stage_code = #{stageCode} AND `status`='31') d ,
+        (SELECT COUNT(*) AS `abnormalClose` FROM tk_ticket WHERE del_flag = 0 AND category=#{category} AND stage_code = #{stageCode} AND `status`='91') e ,
+        (SELECT COUNT(*) AS `normalClose` FROM tk_ticket WHERE del_flag = 0 AND category=#{category} AND stage_code = #{stageCode} AND `status`='92') f ;
+    </select>
+
+    <select id="getTicketByContent" resultType="com.allen.testplatform.modules.databuilder.model.fhcy.entity.TkTicket" flushCache="false">
+        SELECT * FROM tk_ticket WHERE content =#{content} AND del_flag = 0 AND category=#{category}
+    </select>
+
+</mapper>

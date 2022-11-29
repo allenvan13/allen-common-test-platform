@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allen.testplatform.modules.databuilder.mapper.CjcyMapper">
+
+    <select id="getBatchRoom" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        r.ban_code,
+        r.ban_name,
+        r.unit,
+        r.floor,
+        r.rooms,
+        cbr.room_code,
+        cbr.room_name,
+        cb.pay_date AS payDate
+        FROM
+        room r
+        INNER JOIN check_batch_room cbr ON cbr.room_code = r.room_code
+        LEFT JOIN check_batch cb ON cb.id = cbr.check_batch_id and cb.del_flag=0
+        AND cbr.del_flag = 0
+        WHERE
+        r.del_flag = 0
+        AND cbr.check_batch_id = #{batchId}
+        <if test="banName != null and banName != ''">
+            AND r.ban_name LIKE concat('%',#{banName},'%')
+        </if>
+        <if test="roomNumber != null and roomNumber != ''">
+            AND r.room_name LIKE concat('%',#{roomNumber},'%')
+        </if>
+        <if test="unit != null and unit != ''">
+            AND r.unit = #{unit}
+        </if>
+        <if test="floor != null and floor != ''">
+            AND r.floor = #{floor}
+        </if>
+    </select>
+
+    <select id="getRoomCheckItem" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT * FROM check_item WHERE
+        id IN ( SELECT check_item_id FROM room_relation_check_item WHERE check_batch_id = #{batchId} AND room_code = #{roomCode} )
+        AND del_flag = 0 ORDER BY sort ASC
+    </select>
+
+    <select id="getParentCheckItem" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        ci1.id AS ckOneId,
+        ci1.`name` AS ckOneName,
+        ci2.id AS ckTwoId,
+        ci2.`name` AS ckTwoName,
+        ci3.id AS ckItemId,
+        ci3.`name` AS ckItemName
+        FROM
+        check_item ci3
+        LEFT JOIN check_item ci2 ON ci2.id = ci3.parent_id AND ci2.del_flag = 0
+        LEFT JOIN check_item ci1 ON ci1.id = ci2.parent_id AND ci1.del_flag = 0
+        WHERE
+        ci3.id = #{checkItemId}
+        AND ci3.del_flag = 0
+    </select>
+
+    <select id="getDutyUser" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        pa.provider_guid,
+        pa.provider_name,
+        pae.*
+        FROM
+        provider_assoc_employees pae
+        LEFT JOIN provider_info pi ON pi.id = pae.provider_info_id
+        AND pi.del_flag = 0
+        LEFT JOIN provider_assoc pa ON pa.provider_guid = pi.provider_guid
+        AND pa.del_flag = 0
+        WHERE
+        pae.del_flag = 0
+        AND pae.emp_type = #{empType}
+        AND pi.stage_code = #{stageCode}
+        AND pa.check_item_id = #{checkItemId}
+        AND pa.ban_code = #{banCode}
+        GROUP BY emp_id,provider_guid
+        LImit 1
+    </select>
+
+    <select id="getCheckBatch" resultType="com.allen.testplatform.modules.databuilder.model.common.CheckBatch">
+        SELECT * from check_batch WHERE del_flag=0 AND id = #{batchId}
+    </select>
+
+    <select id="getTargetOrderIdList" resultType="Long">
+        SELECT id FROM cjcy_order o WHERE del_flag = 0
+
+        <if test="orderQuery.status != null and orderQuery.status != ''">
+            and o.`status` = #{orderQuery.status}
+        </if>
+
+        <if test="orderQuery.orgName !=null and orderQuery.orgName != ''">
+            and o.org_name = #{orderQuery.orgName}
+        </if>
+        <if test="orderQuery.orgCode !=null and orderQuery.orgCode != ''">
+            and o.org_code = #{orderQuery.orgCode}
+        </if>
+        <if test="orderQuery.projectName !=null and orderQuery.projectName != ''">
+            and o.project_name = #{orderQuery.projectName}
+        </if>
+        <if test="orderQuery.projectCode !=null and orderQuery.projectCode != ''">
+            and o.project_code = #{orderQuery.projectCode}
+        </if>
+        <if test="orderQuery.stageName !=null and orderQuery.stageName != ''">
+            and o.stage_name = #{orderQuery.stageName}
+        </if>
+        <if test="orderQuery.stageCode !=null and orderQuery.stageCode != ''">
+            and o.stage_code = #{orderQuery.stageCode}
+        </if>
+
+
+        <if test="orderQuery.banName !=null and orderQuery.banName != ''">
+            and o.ban_name like concat('%',#{orderQuery.banName},'%')
+        </if>
+        <if test="orderQuery.banCode !=null and orderQuery.banCode != ''">
+            and o.ban_code = #{orderQuery.banCode}
+        </if>
+        <if test="orderQuery.unit !=null and orderQuery.unit != ''">
+            and o.unit = #{orderQuery.unit}
+        </if>
+        <if test="orderQuery.roomName !=null and orderQuery.roomName != ''">
+            and o.room_name like concat('%',#{orderQuery.roomName},'%')
+        </if>
+        <if test="orderQuery.roomCode !=null and orderQuery.roomCode != ''">
+            and o.room_code = #{orderQuery.roomCode}
+        </if>
+
+        <if test="orderQuery.providerName !=null and orderQuery.providerName != ''">
+            and o.provider_name = #{orderQuery.providerName}
+        </if>
+        <if test="orderQuery.providerGuid !=null and orderQuery.providerGuid != ''">
+            and o.provider_guid = #{orderQuery.providerGuid}
+        </if>
+
+        <if test="orderQuery.createUsername !=null and orderQuery.createUsername != ''">
+            and o.create_user = #{orderQuery.createUsername}
+        </if>
+        <if test="orderQuery.createRealname !=null and orderQuery.createRealname != ''">
+            and o.creator_name #{orderQuery.createRealname}
+        </if>
+
+        <if test="orderQuery.dutyUserId !=null and orderQuery.dutyUserId != ''">
+            and o.duty_user_id = #{orderQuery.dutyUserId}
+        </if>
+        <if test="orderQuery.dutyUserName !=null and orderQuery.dutyUserName != ''">
+            and o.duty_user_name = #{orderQuery.dutyUserName}
+        </if>
+        <if test="orderQuery.checkBatchId !=null and orderQuery.checkBatchId != ''">
+            and o.check_batch_id = #{orderQuery.checkBatchId}
+        </if>
+        <if test="orderQuery.checkBatchName !=null and orderQuery.checkBatchName != ''">
+            and o.batch_name = #{orderQuery.checkBatchName}
+        </if>
+
+        <if test="orderQuery.id !=null and orderQuery.id != ''">
+            and o.id = #{orderQuery.id}
+        </if>
+        <if test="orderQuery.content !=null and orderQuery.content != ''">
+            and o.content like concat('%',#{orderQuery.content},'%')
+        </if>
+        <if test="orderQuery.sn !=null and orderQuery.sn != ''">
+            and o.sn = #{orderQuery.sn}
+        </if>
+        <if test="orderQuery.title !=null and orderQuery.title != ''">
+            and o.title = #{orderQuery.title}
+        </if>
+
+        <if test="orderQuery.importance !=null and orderQuery.importance != ''">
+            and o.importance = #{orderQuery.importance}
+        </if>
+        <if test="orderQuery.location !=null and orderQuery.location != ''">
+            and o.location like concat('',#{orderQuery.location},'%')
+        </if>
+
+        <if test="orderQuery.submitTimeStart != null ">
+            and o.create_date &gt; #{orderQuery.submitTimeStart}
+        </if>
+        <if test="orderQuery.submitTimeEnd!= null ">
+            and o.create_date &lt; #{orderQuery.submitTimeEnd}
+        </if>
+        <if test="orderQuery.updateTimeStart!= null ">
+            and o.update_date &gt; #{orderQuery.updateTimeStart}
+        </if>
+        <if test="orderQuery.updateTimeEnd!= null ">
+            and o.update_date &lt; #{orderQuery.updateTimeEnd}
+        </if>
+    </select>
+
+    <select id="getRecitifyProcessUser" resultType="com.allen.testplatform.modules.databuilder.model.cjcy.entity.ProcessUserOrder" resultMap="getRecitifyProcessUser">
+        SELECT
+        GROUP_CONCAT( order_id ) AS processorOrderIds,
+        processor_id AS processorId,
+        processor_name AS processorName,
+        processor_code AS processorCode
+        FROM
+        cjcy_order_processor
+        WHERE
+        del_flag = 0
+        <if test="orderIdList !=null and orderIdList.size > 0">
+            AND order_id IN
+            <foreach collection="orderIdList" item="orderId" separator="," open="(" close=")">
+                #{orderId}
+            </foreach>
+        </if>
+        AND role_type = 1
+        GROUP BY processor_id, processor_name, processor_code
+    </select>
+
+    <resultMap id="getRecitifyProcessUser" autoMapping="true"
+               type="com.allen.testplatform.modules.databuilder.model.cjcy.entity.ProcessUserOrder">
+        <result column="processorOrderIds" property="processorOrderIds" typeHandler="com.allen.testplatform.common.handler.MySplitHandler"></result>
+    </resultMap>
+
+    <select id="getCreateOrderUsers" resultType="com.allen.testplatform.modules.databuilder.model.cjcy.entity.ProcessUserOrder" resultMap="getCreateOrderUsers">
+        SELECT
+        GROUP_CONCAT( a.order_id ) AS processorOrderIds,
+        a.operator_id AS processorId,
+        a.operator_name AS processorName,
+        a.create_user AS processorCode
+        FROM (SELECT order_id,operator_id,operator_name,create_user from cjcy_order_log WHERE del_flag = 0 AND operation_type = 0
+
+        <if test="orderIdList !=null and orderIdList.size > 0">
+            AND order_id IN
+            <foreach collection="orderIdList" item="orderId" separator="," open="(" close=")">
+                #{orderId}
+            </foreach> GROUP BY operator_id,order_id) a
+        </if>
+    </select>
+
+    <resultMap id="getCreateOrderUsers" autoMapping="true"
+               type="com.allen.testplatform.modules.databuilder.model.cjcy.entity.ProcessUserOrder">
+        <result column="processorOrderIds" property="processorOrderIds" typeHandler="com.allen.testplatform.common.handler.MySplitHandler"></result>
+    </resultMap>
+
+    <select id="getOrderCheckType" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT order_id AS orderId,check_type AS checkType from cjcy_order_extension WHERE del_flag = 0
+        <if test="orderIdList !=null and orderIdList.size > 0">
+            AND order_id IN
+            <foreach collection="orderIdList" item="orderId" separator="," open="(" close=")">
+                #{orderId}
+            </foreach>
+        </if>
+    </select>
+</mapper>

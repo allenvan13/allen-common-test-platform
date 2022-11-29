@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allen.testplatform.modules.databuilder.mapper.PileMapper">
+
+
+    <select id="getPileSection" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        pp.section_id AS sectionId,
+        pp.ban_name AS banName,
+        pp.ban_code AS banCode,
+        pp.picture
+        FROM
+        pile_picture pp
+        WHERE
+        pp.del_flag = 0
+        AND pp.section_id IN ( SELECT id FROM zxxj_section WHERE `name` = #{sectionName} AND del_flag = 0 )
+    </select>
+
+    <select id="getPileCheckType" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        t1.id AS typeId,
+        t1.`name` AS typeName,
+        CONCAT_WS( '-', t2.`name`, t1.`name` ) AS typePath
+        FROM
+        pile_type t1
+        LEFT JOIN pile_type t2 ON t1.parent_id = t2.id
+        AND t2.del_flag = 0
+        AND t1.del_flag = 0
+        WHERE
+        t1.is_last = 1
+        AND t2.parent_id = 0
+    </select>
+
+    <select id="getPoint" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        tp.id AS pointId,
+        tp.title AS title,
+        tp.remark AS remark
+        FROM
+        pile_type_point tp
+        LEFT JOIN pile_type t ON t.id = tp.type_id
+        AND t.del_flag = 0
+        WHERE
+        tp.del_flag = 0
+        AND t.is_last = 1
+        AND t.id = #{typeId}
+    </select>
+
+    <select id="getSectionCompany" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        zs.id AS sectionId,
+        zsc.construction,
+        zsc.construction_guid AS constructionGuid,
+        zs.contractor,
+        zs.contractor_guid AS contractorGuid,
+        zs.supervisor,
+        zs.supervisor_guid AS supervisorGuid
+        FROM
+        zxxj_section zs
+        LEFT JOIN
+        zxxj_section_construction zsc ON zsc.section_id = zs.id
+        WHERE
+        zs.del_flag = 0
+        AND  zs.`name` = #{sectionName}
+        LIMIT 1
+    </select>
+
+    <select id="assertDetail" resultType="com.allen.testplatform.modules.databuilder.model.pile.AssertDetail" flushCache="true">
+        SELECT
+        id AS detailId,
+        section_id AS sectionId,
+        section_name AS sectionName,
+        ban_code AS pileAreaCode,
+        ban_name AS pileAreaName,
+        type_id AS typeId,
+        type_name AS typeName,
+        type_path AS typePath,
+        pile_sn AS pileSn,
+        commit_type AS commitType
+        FROM
+        pile_detail WHERE del_flag = 0 AND id = #{pileDetailId}
+    </select>
+
+    <select id="assertDetailPoint" resultMap="assertDetailPoint" flushCache="true">
+        SELECT point_id AS pointId,picture,title,remark FROM pile_details_point WHERE del_flag = 0 AND pile_detail_id = #{pileDetailId}
+    </select>
+
+    <select id="assertDetailHandler" resultType="com.allen.testplatform.modules.databuilder.model.pile.AssertDetailHandlerEntity" flushCache="true">
+        SELECT * FROM pile_handler WHERE 1 = 1 AND pile_detail_id = #{pileDetailId}
+        <if test="identity != null and identity != ''">
+            AND identity= #{identity}
+        </if>
+    </select>
+
+    <select id="getDetailIdList" resultType="long">
+        select
+        pd.id
+        from pile_detail pd
+        <where>
+            <choose>
+                <when test="stages != null and stages.length>0">
+                    pd.stage_code in
+                    <foreach collection="stages" open="(" separator="," close=")" item="stages" index="no">
+                        #{stages}
+                    </foreach>
+                </when>
+            </choose>
+            1 = 1
+            and pd.del_flag=0
+            <if test="qvo.commitType !=null and qvo.commitType!=''">
+                and pd.commit_type=#{qvo.commitType}
+            </if>
+            <if test="qvo.orgCode !=null and qvo.orgcode!=''">
+                and pd.org_code=#{qvo.orgCode}
+            </if>
+            <if test="qvo.orgName !=null and qvo.orgName!=''">
+                and pd.org_name=#{qvo.orgName}
+            </if>
+            <if test="qvo.partName != null and qvo.partName != ''">
+                and pd.ban_name = #{qvo.partName}
+            </if>
+            <if test="qvo.projectCode !=null and qvo.projectCode!=''">
+                and pd.project_code=#{qvo.projectCode}
+            </if>
+            <if test="qvo.projectName !=null and qvo.projectName!=''">
+                and pd.project_name=#{qvo.projectName}
+            </if>
+            <if test="qvo.stageCode !=null and qvo.stageCode!=''">
+                and pd.stage_code=#{qvo.stageCode}
+            </if>
+            <if test="qvo.stageName !=null and qvo.stageName!=''">
+                and pd.stage_name=#{qvo.stageName}
+            </if>
+            <if test="qvo.sectionId !=null and qvo.sectionId!=''">
+                and pd.section_id=#{qvo.sectionId}
+            </if>
+            <if test="qvo.sectionName !=null and qvo.sectionName!=''">
+                and pd.section_name=#{qvo.sectionName}
+            </if>
+            <if test="qvo.typePath !=null and qvo.typePath !=''">
+                and pd.type_path like concat('%',#{qvo.typePath},'%')
+            </if>
+            <if test="qvo.pileSn !=null and qvo.pileSn!=''">
+                and pd.pile_sn like concat('%',#{qvo.pileSn},'%')
+            </if>
+            <if test="qvo.createUserName !=null and qvo.createUserName!=''">
+                and pd.create_user like concat('%',#{qvo.createUserName},'%')
+            </if>
+            <if test="qvo.beginTime !=null">
+                and pd.create_date &gt; #{qvo.beginTime}
+            </if>
+            <if test="qvo.endTime !=null">
+                and pd.create_date &lt; #{qvo.endTime}
+            </if>
+        </where>
+        order by pd.create_date desc
+    </select>
+
+    <select id="assertPileDetail" resultType="com.allen.testplatform.testscripts.testcase.jx.CommonZjys$AssertPileDetail">
+        SELECT
+        pile_detail.id AS detailId,
+        pile_detail.org_name AS orgName,
+        pile_detail.org_code AS orgCode,
+        pile_detail.project_name AS projectName,
+        pile_detail.project_code AS projectCode,
+        pile_detail.stage_name AS stageName,
+        pile_detail.stage_code AS stageCode,
+        pile_detail.section_id AS sectionId,
+        pile_detail.section_name AS sectionName,
+        pile_detail.type_path AS typePath,
+        pile_detail.type_id AS typeId,
+        pile_detail.pile_sn AS pileSn,
+        pile_detail.type_name AS typeName,
+        pile_detail.ban_name AS pileAreaName,
+        pile_detail.ban_code AS pileAreaCode,
+        pile_detail.commit_type AS commitType
+        FROM
+        pile_detail
+        WHERE
+        pile_detail.del_flag = 0 AND
+        pile_detail.pile_sn = #{pileSn} AND
+        pile_detail.stage_code = #{stageCode}
+    </select>
+
+    <select id="assertPileDetailPoint" resultMap="assertPileDetailPoint" flushCache="true">
+        SELECT point_id AS pointId,picture,title,remark FROM pile_details_point WHERE del_flag = 0 AND pile_detail_id = #{pileDetailId}
+    </select>
+
+    <select id="countPileDetail" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT a.all,b.todo,c.done FROM (SELECT count(*) AS `all` FROM pile_detail WHERE del_flag = 0 AND ban_code = #{checkPartCode} AND section_id=#{sectionId}) a ,
+        (SELECT count(*) AS 'todo' FROM pile_detail WHERE del_flag = 0 AND ban_code = #{checkPartCode} AND section_id=#{sectionId}  AND commit_type = 1) b ,
+        (SELECT count(*) AS 'done' FROM pile_detail WHERE del_flag = 0 AND ban_code = #{checkPartCode} AND section_id=#{sectionId}  AND commit_type = 2) c ;
+    </select>
+
+    <resultMap id="assertDetailPoint" autoMapping="true"
+               type="com.allen.testplatform.modules.databuilder.model.pile.AssertDetailPoint">
+        <id column="pointId" property="pointId"></id>
+        <result column="picture" property="picture" typeHandler="com.allen.testplatform.common.handler.MySplitHandler"></result>
+    </resultMap>
+
+    <resultMap id="assertPileDetailPoint" autoMapping="true"
+               type="com.allen.testplatform.testscripts.testcase.jx.CommonZjys$AssertPileDetailPoint">
+        <id column="pointId" property="pointId"></id>
+        <result column="picture" property="picture" typeHandler="com.allen.testplatform.common.handler.MySplitHandler"></result>
+    </resultMap>
+
+</mapper>

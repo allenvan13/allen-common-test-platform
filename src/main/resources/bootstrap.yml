@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: @artifactId@
+  profiles:
+    active: @profiles.active@
+
+apollo:
+  meta: @profiles.meta@
+  bootstrap:
+    enabled: true
+    namespaces: @profiles.public.namespace@
+
+app:
+  id: ${spring.application.name}

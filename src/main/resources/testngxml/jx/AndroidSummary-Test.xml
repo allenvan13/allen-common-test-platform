@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite preserve-order="true" thread-count="1" parallel="false" name="NewHope-匠星APP-Android端-集中调度测试">
+
+    <suite-files>
+        <suite-file path="ZjysMainProcess-Test.xml"></suite-file>
+        <suite-file path="ZxxjPrintInputBox-Test.xml"></suite-file>
+        <suite-file path="GxysMainProcess-Test.xml"></suite-file>
+
+
+        <suite-file path="FhcyMainProcess-Test.xml"></suite-file>
+        <suite-file path="GcjcMainProcess-Test.xml"></suite-file>
+        <suite-file path="ZsjcMainProcess-Test.xml"></suite-file>
+        <suite-file path="JgjcMainProcess-Test.xml"></suite-file>
+    </suite-files>
+
+    <listeners>
+        <listener class-name="com.allen.testplatform.testscripts.listener.ExtentTestNGIReporterListener" />
+        <listener class-name="com.allen.testplatform.testscripts.listener.AssertListener" />
+    </listeners>
+
+</suite>

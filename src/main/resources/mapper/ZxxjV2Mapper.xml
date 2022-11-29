@@ -1,0 +1,413 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.allen.testplatform.modules.databuilder.mapper.ZxxjV2Mapper">
+
+    <select id="getTargetCheckItem" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+            <include refid="zxxj_check_item" />
+        FROM
+            zxxj_template_check_item
+        WHERE
+            del_flag = 0
+        AND id = #{checkItemId}
+    </select>
+
+    <select id="getCheckItem" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        <include refid="zxxj_check_item" />
+        FROM
+        zxxj_template_check_item
+        WHERE
+        del_flag = 0
+        AND name = #{checkItemName}
+        AND template_id = #{templateId}
+        LIMIT 1
+    </select>
+
+    <select id="getTemplateCheckList" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        <include refid="zxxj_check_item" />
+        FROM
+        zxxj_template_check_item
+        WHERE
+        del_flag = 0
+        AND template_id = #{templateId}
+    </select>
+
+    <select id="getTemplateId" resultType="long">
+        SELECT
+            id AS templateId
+        FROM
+            zxxj_template
+        WHERE
+        del_flag = 0
+        AND name = #{templateName}
+        LIMIT 1
+    </select>
+
+    <select id="getTargetLastCheckList" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+            cis.batch_id AS batchId,
+            cis.score,
+            cis.score_info AS scoreInfo,
+            tci.checkItemId,
+            tci.checkItemName,
+            tci.parentId,
+            tci.templateId,
+            tci.`level`,
+            tci.redLine,
+            tci.extension
+        FROM
+            (
+            SELECT
+                <include refid="zxxj_check_item" />
+            FROM
+                zxxj_template_check_item
+            WHERE
+                del_flag = 0
+                AND extension != ''
+                AND extension IS NOT NULL
+                <if test="templateId !=null and templateId !=''">
+                    AND template_id = #{templateId}
+                </if>
+                <if test="checkItemId !=null and checkItemId !=''">
+                    AND id = #{checkItemId}
+                </if>
+            ) tci
+        LEFT JOIN zxxj_check_item_score cis ON cis.check_item_id = tci.checkItemId
+        WHERE
+        1 = 1
+        <if test="batchId !=null and batchId !=''">
+            AND cis.batch_id  = #{batchId}
+        </if>
+        <if test="hasBeenScored !=null and hasBeenScored == true">
+            AND cis.score IS NOT NULL
+            AND cis.score_info IS NOT NULL
+        </if>
+        <if test="hasBeenScored !=null and hasBeenScored == false">
+            AND cis.score IS NULL
+            AND cis.score_info IS NULL
+        </if>
+        <if test="hasBeenScored ==null and hasBeenScored == ''">
+        </if>
+        <if test="templateId !=null and templateId !=''">
+            AND cis.template_id = #{templateId}
+        </if>
+    </select>
+
+    <select id="getScoreLastList" resultType="com.alibaba.fastjson.JSONObject" flushCache="true">
+        SELECT
+        <include refid="item_score" />
+        FROM zxxj_check_item_score a
+        LEFT JOIN zxxj_template_check_item b ON a.check_item_id = b.id AND b.del_flag = 0
+        LEFT JOIN zxxj_template_check_item c ON b.id=c.parent_id AND c.del_flag = 0
+        WHERE IFNULL(c.id,'')='' AND a.template_id = #{templateId} AND a.batch_id = #{batchId} AND a.score IS NOT NULL
+    </select>
+
+    <select id="getScoreFirstList" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT <include refid="item_score" /> FROM zxxj_check_item_score a
+        LEFT JOIN zxxj_template_check_item b ON a.check_item_id = b.id AND b.del_flag = 0
+        WHERE b.level = 1 AND a.template_id = #{templateId} AND a.batch_id = #{batchId} AND a.score IS NOT NULL
+    </select>
+
+    <select id="getScoreFamily" resultType="com.allen.testplatform.modules.databuilder.model.zxxj.vo.AssertItemScore" flushCache="true">
+        SELECT
+        <include refid="item_score" />
+        FROM
+        ( SELECT * FROM zxxj_check_item_score WHERE batch_id = #{batchId} AND template_id = #{templateId} ) a
+        LEFT JOIN zxxj_template_check_item b ON a.check_item_id = b.id
+        <if test="checkItemIds!=null">
+            WHERE
+            a.check_item_id IN
+            <foreach collection="checkItemIds" item="id" separator="," open="(" close=")">
+                #{id}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="getTemplateScore" resultType="com.allen.testplatform.modules.databuilder.model.zxxj.vo.AssertTemplateScore" flushCache="true">
+        SELECT batch_id AS batchId,template_id AS templateId,weight,is_weight_average AS isWeightAverage,score,is_finish AS isFinish
+        from zxxj_score WHERE 1 =1 AND batch_id=#{batchId}
+        <if test="templateId != null and templateId != ''">
+            AND template_id = #{templateId}
+        </if>
+    </select>
+
+    <select id="getTemplateType" resultType="string">
+        SELECT type FROM zxxj_template WHERE del_flag = 0 AND id = #{templateId}
+    </select>
+
+    <select id="getBatchTemplate" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        tr.single_template_id AS templateId,
+        t.`name` AS templateName,
+        t.type AS templateType
+        FROM
+        zxxj_template_relation tr
+        LEFT JOIN zxxj_template t ON t.id = tr.single_template_id
+        AND t.del_flag = 0
+        WHERE
+        tr.group_template_id IN (SELECT template_id FROM zxxj_batch WHERE del_flag = 0 AND id=#{batchId})
+        <if test="templateName != null and templateName != ''">
+            AND t.`name` = #{templateName}
+        </if>
+    </select>
+
+    <select id="getBatchSingleTemplate" resultType="com.allen.testplatform.modules.databuilder.model.zxxj.entity.ZxxjTemplateRelation">
+        SELECT tr.*,t.`name` AS templateName,t.type AS templateType
+        FROM zxxj_template_relation tr
+        LEFT JOIN zxxj_template t ON t.id = tr.single_template_id AND t.del_flag = 0
+        WHERE group_template_id = #{groupTemplateId}
+    </select>
+
+    <select id="getSingleTemplate" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT t.* FROM zxxj_template t WHERE t.id = #{templateId} AND t.del_flag = 0
+    </select>
+
+    <select id="getTemplateArithmetic" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT arithmetic_key,arithmetic_value FROM zxxj_template_arithmetic WHERE template_id =#{templateId}
+    </select>
+
+    <!--  批次检查人信息  -->
+    <select id="getBatchUserInfo" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        user_id AS userId,
+        user_code AS userName,
+        real_name AS realName,
+        post AS position,
+        identity
+        FROM
+        zxxj_batch_user bu
+        LEFT JOIN zxxj_batch b ON b.id = bu.batch_id
+        WHERE
+        b.del_flag = 0
+        AND b.`id` = #{batchId}
+        <if test="identity != null and identity != ''">
+            AND bu.identity = #{identity}
+        </if>
+    </select>
+
+    <!--  批次信息  -->
+    <select id="getBatchInfo" resultType="com.allen.testplatform.modules.databuilder.model.zxxj.entity.ZxxjBatch" flushCache="true">
+        SELECT
+        b.id AS batchId,
+        b.`name` AS batchName,
+        b.org_name,
+        b.org_code,
+        b.project_name,
+        b.project_code,
+        b.stage_name,
+        b.stage_code,
+        b.type,
+        b.section_id,
+        b.method,
+        b.template_id AS templateId,
+        t.type AS templateType,
+        t.`name` AS templateName,
+        b.assess_year,
+        b.assess_month,
+        b.enable,
+        b.download_status,
+        b.is_finish AS finish,
+        b.score AS batchScore,
+        b.create_user_name,
+        b.create_user_id,
+        b.finish_date
+        FROM
+        zxxj_batch b
+        LEFT JOIN zxxj_template t ON t.id = b.template_id AND t.del_flag = 0
+        WHERE
+        b.del_flag = 0
+        <if test="batchName != null and batchName != ''">
+            AND b.`name` = #{batchName}
+        </if>
+        <if test="batchId != null and batchId != ''">
+            AND b.id =#{batchId}
+        </if>
+        LIMIT 1
+    </select>
+
+    <!--  专项巡检根据模板id获取可打分的末级项检查项  -->
+    <select id="getLastCheckList" resultType="com.allen.testplatform.modules.databuilder.model.zxxj.entity.ZxxjTemplateCheckItem">
+        SELECT * from zxxj_template_check_item WHERE template_id = #{templateId} AND ISNULL( extension ) = 0
+        AND LENGTH( extension ) > 0 AND ( extension LIKE '%checkGuide%' OR extension LIKE '%limit%' OR extension LIKE '%areaCount%')  and del_flag=0;
+    </select>
+
+    <select id="getCheckItemList" resultType="com.allen.testplatform.modules.databuilder.model.zxxj.entity.ZxxjTemplateCheckItem">
+        SELECT * from zxxj_template_check_item WHERE template_id = #{templateId} and del_flag=0;
+    </select>
+
+    <update id="updateBatchScore">
+        UPDATE zxxj_batch SET score=NULL WHERE id=#{batchId}
+    </update>
+
+    <update id="updateBatch">
+        UPDATE zxxj_batch SET is_finish = 0 WHERE id=#{batchId}
+    </update>
+
+    <update id="updateTemplateScore" >
+        UPDATE zxxj_score SET score = NULL WHERE
+        1 = 1
+            AND batch_id =  #{batchId}
+        <if test="templateId != null and templateId != ''">
+            AND template_id = #{templateId}
+        </if>
+    </update>
+    <update id="updateTemplate" >
+        UPDATE zxxj_score SET is_finish = 0 WHERE
+        1 = 1
+        AND batch_id =  #{batchId}
+        <if test="templateId != null and templateId != ''">
+            AND template_id = #{templateId}
+        </if>
+    </update>
+
+    <update id="updateCheckItemScore">
+        UPDATE zxxj_check_item_score SET score = NULL,score_info = NULL,red_line_score=NULL,ext_score=NULL,pass_point=NULL,total_point=NULL
+        WHERE
+        1 = 1
+            AND batch_id =  #{batchId}
+        <if test="templateId != null and templateId != ''">
+            AND template_id = #{templateId}
+        </if>
+        <if test="checkItemIds!=null and checkItemIds != ''">
+            AND check_item_id IN
+            <foreach collection="checkItemIds" item="id" separator="," open="(" close=")">
+                #{id}
+            </foreach>
+        </if>
+    </update>
+
+    <sql id="item_score">
+        a.score,
+        a.score_info AS scoreInfo,
+        a.check_item_id AS checkItemId,
+        a.template_id AS templateId,
+        a.batch_id AS batchId,
+        a.red_line_score AS redLineScore,
+        a.pass_point AS passPoint,
+        a.total_point AS totalPoint,
+        a.`level`,
+        b.extension,
+        b.parent_id AS parentId,
+        b.red_line AS redLine
+    </sql>
+
+    <sql id="zxxj_check_item">
+        id AS checkItemId,`name` AS checkItemName,parent_id AS parentId,template_id AS templateId,`level`,red_line AS redLine,extension
+    </sql>
+
+    <select id="getProblemPartInfo" resultType="com.alibaba.fastjson.JSONObject">
+        SELECT
+        r.ban_name AS banName,
+        r.ban_code AS banCode,
+        r.unit,
+        r.floor,
+        r.rooms,
+        r.room_name AS roomName,
+        r.room_code AS roomCode,
+        ht.image_url AS checkImageUrl,
+        ht.id AS houseTypeId
+        FROM
+        room r
+        LEFT JOIN house_type ht ON ht.id = r.project_house_type_id AND ht.del_flag = 0
+        WHERE
+        r.del_flag = 0
+        AND r.ban_code IN ( SELECT ban_code FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId} )
+        <if test="hasSectionUnit == 1 or hasSectionUnit == true">
+            AND unit IN ( SELECT unit FROM zxxj_section_scope WHERE 1 = 1 AND section_id = #{sectionId} )
+        </if>
+        <if test="roomQuery.banName != null and roomQuery.banName != ''">
+            AND r.ban_name = #{roomQuery.banName}
+        </if>
+        <if test="roomQuery.unitName != null and roomQuery.unitName != ''">
+            AND r.unit = #{roomQuery.unitName}
+        </if>
+        <if test="roomQuery.floorName != null and roomQuery.floorName != ''">
+            AND r.floor = #{roomQuery.floorName}
+        </if>
+        <if test="roomQuery.roomName != null and roomQuery.roomName != ''">
+            AND r.rooms = #{roomQuery.roomName}
+        </if>
+        AND ht.check_type=1
+        GROUP BY r.room_code
+    </select>
+
+    <select id="getTargetOrderIdList" resultType="Long">
+        SELECT id FROM zxxj_order t WHERE 1 = 1
+        <if test="orderQuery.orgName !=null and orderQuery.orgName != ''">
+            and t.org_name = #{orderQuery.orgName}
+        </if>
+        <if test="orderQuery.projectName !=null and orderQuery.projectName != ''">
+            and t.project_name = #{orderQuery.projectName}
+        </if>
+        <if test="orderQuery.stageCode !=null and orderQuery.stageCode != ''">
+            and t.stage_code = #{orderQuery.stageCode}
+        </if>
+        <if test="orderQuery.banName !=null and orderQuery.banName != ''">
+            and t.ban_name = #{orderQuery.banName}
+        </if>
+        <if test="orderQuery.unit !=null and orderQuery.unit != ''">
+            and t.unit = #{orderQuery.unit}
+        </if>
+        <if test="orderQuery.floor !=null and orderQuery.floor != ''">
+            and t.floor = #{orderQuery.floor}
+        </if>
+        <if test="orderQuery.roomName !=null and orderQuery.roomName != ''">
+            and t.room_name like concat('%',#{orderQuery.roomName},'%')
+        </if>
+        <if test="orderQuery.providerName !=null and orderQuery.providerName != ''">
+            and t.provider_name = #{orderQuery.providerName}
+        </if>
+        <if test="orderQuery.batchId !=null and orderQuery.batchId != ''">
+            and t.batch_id = #{orderQuery.batchId}
+        </if>
+        <if test="orderQuery.lastCheckName !=null and orderQuery.lastCheckName != ''">
+            and t.location like concat('%',#{orderQuery.lastCheckName},'%')
+        </if>
+        <if test="orderQuery.creatorName !=null and orderQuery.creatorName != ''">
+            and t.creator like concat('%',#{orderQuery.creatorName},'%')
+        </if>
+        <if test="orderQuery.submitTimeStart != null ">
+            and t.create_date &gt; #{orderQuery.submitTimeStart}
+        </if>
+        <if test="orderQuery.submitTimeEnd!= null ">
+            and t.create_date &lt; #{orderQuery.submitTimeEnd}
+        </if>
+        <if test="orderQuery.updateTimeStart!= null ">
+            and t.update_date &gt; #{orderQuery.updateTimeStart}
+        </if>
+        <if test="orderQuery.updateTimeEnd!= null ">
+            and t.update_date &lt; #{orderQuery.updateTimeEnd}
+        </if>
+        <if test="orderQuery.status != null and orderQuery.status != ''">
+            and t.`status` IN
+            <foreach item="item" index="index" collection="orderQuery.status.split(',')" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+        and t.del_flag = 0
+        order by t.create_date desc
+    </select>
+
+    <select id="getOrderProcessor" resultType="com.allen.testplatform.modules.databuilder.model.zxxj.entity.ZxxjOrderProcessor">
+        SELECT * from zxxj_order_processor WHERE 1 = 1  AND order_id = #{orderId}
+        <if test="roleType != null and roleType != ''">
+            AND role_type = #{roleType}
+        </if>
+    </select>
+
+
+    <!--  批次人员  -->
+    <select id="getBatchUsers" resultType="com.allen.testplatform.modules.databuilder.model.common.CheckUser" flushCache="true">
+        SELECT
+        bu.real_name AS realName,bu.user_id AS userId,identity AS roleType
+        FROM
+        zxxj_batch b
+        LEFT JOIN zxxj_batch_user bu ON bu.batch_id = b.id
+        WHERE b.id = #{batchId} AND b.del_flag = 0
+        <if test="identity != null and identity != ''">
+            AND bu.identity = #{identity}
+        </if>
+    </select>
+</mapper>
